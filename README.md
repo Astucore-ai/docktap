@@ -33,18 +33,6 @@ Default action is a real **minimize** (the yellow traffic light), not Hide, so t
 
 This Mac already has **Minimize windows into application icon** on, which matches the Windows taskbar.
 
-## Hammerspoon companion
-
-If you already run [Hammerspoon](https://www.hammerspoon.org/) (this Mac does), drop `extras/hammerspoon/docktap.lua` into `~/.hammerspoon/` and `require` it from `init.lua`. That path uses Hammerspoon’s existing Accessibility grant, so it works immediately.
-
-```lua
-require("hs.ipc")
-local docktap = require("docktap")
-docktap.start()
-```
-
-The standalone app and the Hammerspoon module implement the same rule: only the already-focused app’s icon minimizes. They can run together without fighting restore clicks.
-
 ## Persistence
 
 `~/Library/LaunchAgents/com.astucore.docktap.plist`
