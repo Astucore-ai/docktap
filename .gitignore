@@ -1,0 +1,11 @@
+.build/
+signing/
+*.keychain-db
+*.p12
+*.cer
+.DS_Store
+*.swp
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+Library/Logs/
