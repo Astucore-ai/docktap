@@ -1,6 +1,6 @@
 # Docktap
 
-Windows-style click-to-minimize on the macOS Dock. An [Astucore](https://astucore.ai) app ([source](https://github.com/bcovington/docktap)).
+Windows-style click-to-minimize on the macOS Dock. An [Astucore](https://astucore.ai) app ([source](https://github.com/Astucore-ai/docktap)).
 
 Click the Dock icon of the app that is already in front: its windows minimize. Click the same icon again: they come back. Click any other icon and the Dock behaves as usual.
 
@@ -9,7 +9,7 @@ Click the Dock icon of the app that is already in front: its windows minimize. C
 Requires macOS 13+ on Apple silicon (the checked-in build script targets `arm64`).
 
 ```bash
-git clone https://github.com/bcovington/docktap.git
+git clone https://github.com/Astucore-ai/docktap.git
 cd docktap
 ./scripts/build.sh
 open /Applications/Docktap.app
