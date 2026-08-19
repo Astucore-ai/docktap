@@ -1,0 +1,20 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  compile:
+    name: Compile
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile (no signing)
+        run: ./scripts/compile-check.sh
+      - name: Required sources present
+        run: |
+          test -f Sources/AppDelegate.swift
+          test -f Sources/ClickMonitor.swift
+          test -f scripts/build.sh

@@ -1,0 +1,23 @@
+name: Bug
+description: Something Docktap should do, but does not
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you clicked, what you expected, what you got.
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "15.6"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Optional. `~/Library/Logs/Docktap.log`
+      render: text
