@@ -15,6 +15,10 @@ enum WindowActions {
         !visibleMinimizableWindows(pid: pid).isEmpty
     }
 
+    static func hasMinimizedWindow(pid: pid_t) -> Bool {
+        AX.windows(for: pid).contains { AX.isMinimized($0) }
+    }
+
     static func visibleMinimizableWindows(pid: pid_t) -> [AXUIElement] {
         candidates(pid: pid).filter { isMinimizableVisible($0) }
     }
@@ -46,12 +50,19 @@ enum WindowActions {
     }
 
     static func restoreMinimized(pid: pid_t) -> Int {
+        let windows = AX.windows(for: pid).filter { AX.isMinimized($0) }
         var count = 0
-        for window in AX.windows(for: pid) where AX.isMinimized(window) {
+        for window in windows {
             if AX.setBool(window, kAXMinimizedAttribute as String, false) {
-                AXUIElementPerformAction(window, kAXRaiseAction as CFString)
                 count += 1
             }
+        }
+        if let app = NSRunningApplication(processIdentifier: pid), !app.isTerminated {
+            app.unhide()
+            app.activate(options: [.activateIgnoringOtherApps])
+        }
+        for window in windows {
+            AXUIElementPerformAction(window, kAXRaiseAction as CFString)
         }
         return count
     }

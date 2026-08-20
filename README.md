@@ -22,7 +22,7 @@ Then enable **Docktap** in **System Settings → Privacy & Security → Accessib
 | Click | Result |
 | --- | --- |
 | Dock icon of the focused app (windows visible) | Minimize those windows |
-| Same icon again | Restore (native Dock) |
+| Same icon again (all minimized) | Restore **all** of that app’s minimized windows |
 | Any other app’s icon | Activate / launch as usual |
 | ⌘ ⌥ ⌃ ⇧ + click | Passed through (hide, show others, menus) |
 | Right-click / Control-click | Dock menu, unchanged |

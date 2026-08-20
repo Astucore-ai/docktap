@@ -62,6 +62,16 @@ final class DockCache {
         return list.first { $0.frame.insetBy(dx: -slop, dy: -slop).contains(quartzPoint) }
     }
 
+    func runningApp(matching item: DockAppItem) -> NSRunningApplication? {
+        if let bid = item.bundleIdentifier {
+            let running = NSRunningApplication.runningApplications(withBundleIdentifier: bid)
+            if let match = running.first(where: { !$0.isTerminated }) {
+                return match
+            }
+        }
+        return NSWorkspace.shared.runningApplications.first { matches(item, app: $0) && !$0.isTerminated }
+    }
+
     func matches(_ item: DockAppItem, app: NSRunningApplication) -> Bool {
         if let itemId = item.bundleIdentifier, let appId = app.bundleIdentifier,
            itemId.caseInsensitiveCompare(appId) == .orderedSame {

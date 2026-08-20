@@ -80,7 +80,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         action.action = #selector(changeAction(_:))
         root.addSubview(action)
         y -= 36
-        note("Minimize uses the yellow traffic-light action so the next Dock click restores. Hide is Command-H.")
+        note("Minimize uses the yellow traffic-light. The next Dock click restores every minimized window of that app. Hide is Command-H.")
 
         heading("When several windows are open")
         let scope = NSPopUpButton(frame: NSRect(x: 24, y: y, width: 320, height: 26))

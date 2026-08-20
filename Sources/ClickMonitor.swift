@@ -13,12 +13,18 @@ private func dockTapCallback(
     return monitor.handle(type: type, event: event)
 }
 
+private enum DockIntent {
+    case minimize
+    case restore
+}
+
 private struct ArmedClick {
     let pid: pid_t
     let bundleIdentifier: String?
     let title: String
     let downPoint: CGPoint
     let downAt: Date
+    let intent: DockIntent
 }
 
 final class ClickMonitor {
@@ -127,28 +133,42 @@ final class ClickMonitor {
         DockCache.shared.refresh(force: true)
         guard let item = DockCache.shared.hit(at: point) else { return }
         guard item.running else { return }
-
-        let front = NSWorkspace.shared.frontmostApplication
-            ?? runningApp(pid: lastFrontmostPID, bundle: lastFrontmostBundle)
-        guard let front, front.processIdentifier != AX.ownPID else { return }
-        guard DockCache.shared.matches(item, app: front) else { return }
-        if front.isHidden { return }
-        if SettingsStore.shared.isExcluded(name: front.localizedName, bundleId: front.bundleIdentifier) {
+        guard let app = DockCache.shared.runningApp(matching: item),
+              app.processIdentifier != AX.ownPID else { return }
+        if SettingsStore.shared.isExcluded(name: app.localizedName, bundleId: app.bundleIdentifier) {
             return
         }
-        guard WindowActions.hasVisibleMinimizableWindow(pid: front.processIdentifier) else { return }
+
+        let pid = app.processIdentifier
+        let visible = WindowActions.hasVisibleMinimizableWindow(pid: pid)
+        let minimized = WindowActions.hasMinimizedWindow(pid: pid)
+        let front = NSWorkspace.shared.frontmostApplication
+            ?? runningApp(pid: lastFrontmostPID, bundle: lastFrontmostBundle)
+        let isFront = front.map { DockCache.shared.matches(item, app: $0) } ?? false
+
+        // Frontmost + visible → minimize (Windows). No visible windows but some
+        // are minimized → restore all of them. The Dock only unminimizes one.
+        let intent: DockIntent
+        if isFront, visible, !app.isHidden {
+            intent = .minimize
+        } else if minimized, !visible {
+            intent = .restore
+        } else {
+            return
+        }
 
         let now = Date()
-        if front.processIdentifier == lastActionPID, now.timeIntervalSince(lastActionAt) < minActionGap {
+        if pid == lastActionPID, now.timeIntervalSince(lastActionAt) < minActionGap {
             return
         }
 
         armed = ArmedClick(
-            pid: front.processIdentifier,
-            bundleIdentifier: front.bundleIdentifier,
+            pid: pid,
+            bundleIdentifier: app.bundleIdentifier,
             title: item.title,
             downPoint: point,
-            downAt: now
+            downAt: now,
+            intent: intent
         )
     }
 
@@ -174,31 +194,38 @@ final class ClickMonitor {
         lastActionPID = armed.pid
         let pid = armed.pid
         let title = armed.title
+        let intent = armed.intent
         let settings = SettingsStore.shared.settings
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.07) {
-            self.performToggle(pid: pid, title: title, settings: settings)
+            self.performToggle(pid: pid, title: title, intent: intent, settings: settings)
         }
     }
 
-    private func performToggle(pid: pid_t, title: String, settings: DTSettings) {
+    private func performToggle(pid: pid_t, title: String, intent: DockIntent, settings: DTSettings) {
         guard settings.enabled else { return }
-        guard WindowActions.hasVisibleMinimizableWindow(pid: pid) else { return }
 
         let result: String
-        switch settings.action {
-        case .hide:
-            if title == "Finder" {
-                let n = WindowActions.minimize(pid: pid, scope: settings.scope)
-                result = "minimize-finder \(n) window(s)"
-            } else if WindowActions.hide(pid: pid) {
-                result = "hide"
-            } else {
-                let n = WindowActions.minimize(pid: pid, scope: settings.scope)
-                result = "hide-fallback-minimize \(n) window(s)"
-            }
+        switch intent {
+        case .restore:
+            let n = WindowActions.restoreMinimized(pid: pid)
+            result = "restore \(n) window(s)"
         case .minimize:
-            let n = WindowActions.minimize(pid: pid, scope: settings.scope)
-            result = "minimize \(n) window(s)"
+            guard WindowActions.hasVisibleMinimizableWindow(pid: pid) else { return }
+            switch settings.action {
+            case .hide:
+                if title == "Finder" {
+                    let n = WindowActions.minimize(pid: pid, scope: settings.scope)
+                    result = "minimize-finder \(n) window(s)"
+                } else if WindowActions.hide(pid: pid) {
+                    result = "hide"
+                } else {
+                    let n = WindowActions.minimize(pid: pid, scope: settings.scope)
+                    result = "hide-fallback-minimize \(n) window(s)"
+                }
+            case .minimize:
+                let n = WindowActions.minimize(pid: pid, scope: settings.scope)
+                result = "minimize \(n) window(s)"
+            }
         }
         DTLog.line("\(title) pid=\(pid) → \(result)")
         StatusStore.write(
