@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Docktap ${ver}" \
+            --notes "$(cat <<EOF
+          KeepAlive, crash recovery, and Developer ID / notarization support.
+
+          ## Install (supported)
+
+          \`\`\`bash
+          git clone https://github.com/Astucore-ai/docktap.git
+          cd docktap
+          ./scripts/build.sh
+          \`\`\`
+
+          Then enable **Docktap** in System Settings → Privacy & Security → Accessibility (and Input Monitoring if clicks never fire).
+
+          A source build signs with a local identity unless this machine has a Developer ID Application certificate. Gatekeeper warns on un-notarized copies; that is expected for a source build.
+          EOF
+          )"

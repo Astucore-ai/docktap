@@ -6,7 +6,7 @@ Native AppKit menu-bar app. Click the focused app’s Dock icon to minimize; cli
 
 - `Sources/` — the app. `AppDelegate.swift` + `ClickMonitor.swift` are the core.
 - `Resources/Info.plist` — bundle id `com.astucore.docktap`.
-- `scripts/build.sh` — compile, sign with a *local* identity, install to `/Applications/Docktap.app`.
+- `scripts/build.sh` — compile, sign with a *local* identity, install to `/Applications/Docktap.app`, rewrite and bootstrap KeepAlive (`keep-alive.sh`). Never leave the app off after a build.
 - `scripts/compile-check.sh` — compile only. This is what CI runs.
 - `scripts/ensure-identity.sh` — creates a gitignored identity in `signing/`.
 - `signing/` — **never commit**. `.gitignore` already covers it.
@@ -19,6 +19,8 @@ Native AppKit menu-bar app. Click the focused app’s Dock icon to minimize; cli
 4. Public clone + `./scripts/build.sh` must work on Apple silicon macOS 13+. If you add a source file, CI’s compile-check must still pass.
 5. Accessibility is bound to the code signature. Rebuilding with a new identity breaks permissions until the user toggles them off/on.
 6. Default action is real **minimize**, not Hide.
+7. KeepAlive must stay loaded (`launchctl print gui/$(id -u)/com.astucore.docktap`). Process parent should be launchd.
+8. Prefer a **Developer ID Application** identity when one exists (`scripts/codesign-app.sh`). Do not mint a new local cert if a Developer ID is available — that resets Accessibility. Do not sign Docktap with Snaplane’s identity.
 
 ## Autonomous maintenance
 
@@ -30,4 +32,4 @@ When Grok Bot is asked to maintain this repo:
 - **README / clone URL drift:** keep `https://github.com/Astucore-ai/docktap` as the canonical remote.
 - Notify the owner only for security reports, permission-model changes, or anything that needs a notarized release.
 
-Owner: `@bcovington`. Org: [Astucore-ai](https://github.com/Astucore-ai).
+Org: [Astucore-ai](https://github.com/Astucore-ai).

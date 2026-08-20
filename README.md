@@ -15,7 +15,7 @@ cd docktap
 open /Applications/Docktap.app
 ```
 
-Then enable **Docktap** in **System Settings → Privacy & Security → Accessibility**. If the click never fires, also enable it under **Input Monitoring**. macOS binds those permissions to the app’s signature — toggle them off and on if a rebuild stops working.
+Then enable **Docktap** in **System Settings → Privacy & Security → Accessibility**. If the click never fires, also enable it under **Input Monitoring**. macOS binds those permissions to the **code signature**. A local self-signed build needs a one-time toggle. Rebuilds with the same **Developer ID Application** certificate keep the grants.
 
 ## Use
 
@@ -27,7 +27,7 @@ Then enable **Docktap** in **System Settings → Privacy & Security → Accessib
 | ⌘ ⌥ ⌃ ⇧ + click | Passed through (hide, show others, menus) |
 | Right-click / Control-click | Dock menu, unchanged |
 
-The app lives in the menu bar. **Quit** is restarted by launchd on purpose. Use **Stop until next login** to actually unload it.
+The app lives in the menu bar. **Quit** unloads KeepAlive for this login. A crash still comes back.
 
 Default action is a real **minimize** (the yellow traffic light), not Hide, so the next Dock click restores the windows. Settings can switch to Hide, or minimize only the focused window instead of every visible one.
 
@@ -51,7 +51,7 @@ Resources/   Info.plist, app icon
 scripts/     build.sh, ensure-identity.sh, smoke-test.swift
 ```
 
-`./scripts/build.sh [icon.png]` creates a local code-signing identity in `signing/` (gitignored) so Accessibility survives rebuilds.
+`./scripts/build.sh [icon.png]` signs the app. If a **Developer ID Application** identity is in the login keychain, that is used (hardened runtime + timestamp). If a `notarytool` keychain profile named `astucore` exists, the install is notarized and stapled. Otherwise a gitignored local identity is created in `signing/` so a source build still works without a paid Apple Developer account.
 
 ```bash
 swift scripts/smoke-test.swift

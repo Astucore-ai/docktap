@@ -17,4 +17,8 @@ jobs:
         run: |
           test -f Sources/AppDelegate.swift
           test -f Sources/ClickMonitor.swift
+          test -f Sources/Watchdog.swift
+          test -f Resources/keep-alive.sh
+          test -f Resources/App.entitlements
           test -f scripts/build.sh
+          test -f scripts/codesign-app.sh

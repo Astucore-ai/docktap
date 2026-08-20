@@ -20,6 +20,8 @@ swiftc -swift-version 5 -O \
 
 cp "$ROOT/Resources/Info.plist" "$APP/Contents/Info.plist"
 echo -n "APPL????" > "$APP/Contents/PkgInfo"
+cp "$ROOT/Resources/keep-alive.sh" "$APP/Contents/Resources/keep-alive.sh"
+chmod +x "$APP/Contents/Resources/keep-alive.sh"
 
 if [[ -z "$ICON_SRC" && -f "$ROOT/Resources/icon.png" ]]; then
   ICON_SRC="$ROOT/Resources/icon.png"
@@ -45,62 +47,54 @@ if [[ -f "$ROOT/Resources/AppIcon.icns" ]]; then
   cp "$ROOT/Resources/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 fi
 
-chmod +x "$ROOT/scripts/ensure-identity.sh"
-KEYCHAIN="$("$ROOT/scripts/ensure-identity.sh")"
-security unlock-keychain -p "docktap-local-sign" "$KEYCHAIN"
+chmod +x "$ROOT/scripts/codesign-app.sh"
+"$ROOT/scripts/codesign-app.sh" "$APP"
 
-# Prefer a trusted local identity. A brand-new Docktap cert is not codesign-valid
-# until macOS has been told to trust it (admin dialog). Snaplane's already-trusted
-# identity on this machine is a stable fallback; ad-hoc is last resort.
-SNAPLANE_KEYCHAIN="/Users/mac/Snaplane/signing/snaplane.keychain-db"
-SIGN_NAME="Docktap"
-SIGN_KEYCHAIN="$KEYCHAIN"
-if ! security find-identity -v -p codesigning "$KEYCHAIN" 2>/dev/null | grep -q "Docktap"; then
-  if [[ -f "$SNAPLANE_KEYCHAIN" ]] && security unlock-keychain -p "snaplane-local-sign" "$SNAPLANE_KEYCHAIN" >/dev/null 2>&1 \
-      && security find-identity -v -p codesigning "$SNAPLANE_KEYCHAIN" 2>/dev/null | grep -q "Snaplane"; then
-    SIGN_NAME="Snaplane"
-    SIGN_KEYCHAIN="$SNAPLANE_KEYCHAIN"
-    echo "Signing with existing Snaplane identity (Docktap cert is not yet trusted)"
-  else
-    SIGN_NAME="-"
-    SIGN_KEYCHAIN=""
-    echo "Signing ad-hoc (no trusted local identity)"
-  fi
-fi
-
-OLD_KEYCHAINS=("${(@f)$(security list-keychains -d user | sed 's/^ *"//; s/"$//')}")
-if [[ -n "$SIGN_KEYCHAIN" ]]; then
-  security list-keychains -d user -s "$SIGN_KEYCHAIN" "$KEYCHAIN" "${OLD_KEYCHAINS[@]}"
-else
-  security list-keychains -d user -s "$KEYCHAIN" "${OLD_KEYCHAINS[@]}"
-fi
-cleanup_keychains() {
-  security list-keychains -d user -s "${OLD_KEYCHAINS[@]}" >/dev/null || true
-}
-trap cleanup_keychains EXIT
-
-sign_app() {
-  if [[ "$SIGN_NAME" == "-" ]]; then
-    codesign --force --sign - --identifier com.astucore.docktap "$1"
-  else
-    codesign --force --sign "$SIGN_NAME" --keychain "$SIGN_KEYCHAIN" \
-      --identifier com.astucore.docktap \
-      "$1"
-  fi
-}
-
-sign_app "$APP"
-
+uid="$(id -u)"
+agent="$HOME/Library/LaunchAgents/com.astucore.docktap.plist"
+launchctl bootout "gui/$uid/com.astucore.docktap" 2>/dev/null || true
 if pgrep -x Docktap >/dev/null; then
   killall Docktap 2>/dev/null || true
-  sleep 0.3
+  for _ in 1 2 3 4 5 6 7 8 9 10; do
+    pgrep -x Docktap >/dev/null || break
+    sleep 0.1
+  done
+  killall -9 Docktap 2>/dev/null || true
 fi
 rm -rf "$DEST"
 cp -R "$APP" "$DEST"
+chmod +x "$DEST/Contents/Resources/keep-alive.sh" 2>/dev/null || true
 xattr -dr com.apple.quarantine "$DEST" 2>/dev/null || true
-sign_app "$DEST"
+NOTARIZE=1 "$ROOT/scripts/codesign-app.sh" "$DEST"
 
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$DEST" >/dev/null 2>&1 || true
+
+cat > "$agent" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>AssociatedBundleIdentifiers</key>
+  <array><string>com.astucore.docktap</string></array>
+  <key>KeepAlive</key><true/>
+  <key>Label</key><string>com.astucore.docktap</string>
+  <key>LimitLoadToSessionType</key><string>Aqua</string>
+  <key>ProcessType</key><string>Interactive</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>$DEST/Contents/Resources/keep-alive.sh</string>
+    <string>Docktap</string>
+    <string>$DEST/Contents/MacOS/Docktap</string>
+  </array>
+  <key>RunAtLoad</key><true/>
+  <key>StandardErrorPath</key><string>$HOME/Library/Logs/Docktap.err.log</string>
+  <key>StandardOutPath</key><string>$HOME/Library/Logs/Docktap.log</string>
+  <key>ThrottleInterval</key><integer>3</integer>
+</dict>
+</plist>
+EOF
+launchctl enable "gui/$uid/com.astucore.docktap" 2>/dev/null || true
+launchctl bootstrap "gui/$uid" "$agent"
 
 echo "Installed $DEST"
 ls -la "$DEST/Contents/MacOS/Docktap"

@@ -7,9 +7,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcome: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        CrashCatch.install()
         NSApp.setActivationPolicy(.accessory)
 
-        DTLog.line("launch bundle=\(Bundle.main.bundleIdentifier ?? "nil") path=\(Bundle.main.bundlePath) axAPI=\(AXIsProcessTrusted()) ax=\(AX.isTrusted(prompt: false)) listen=\(CGPreflightListenEventAccess())")
+        DTLog.line("launch bundle=\(Bundle.main.bundleIdentifier ?? "nil") path=\(Bundle.main.bundlePath) axAPI=\(AXIsProcessTrusted()) ax=\(AX.isTrusted(prompt: false)) listen=\(CGPreflightListenEventAccess()) agent=\(LaunchAtLogin.isLoaded())")
 
         buildStatusItem()
         NotificationCenter.default.addObserver(self, selector: #selector(rebuildMenu), name: .dtSettingsChanged, object: nil)
@@ -36,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         startEngine()
+        Watchdog.shared.start()
         if AX.isTrusted(prompt: false) {
             if !UserDefaults.standard.bool(forKey: "DTDidShowWelcome") {
                 showWelcome()
@@ -63,6 +65,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        Watchdog.shared.stop()
         ClickMonitor.shared.stop()
         DTLog.line("terminate")
     }
@@ -136,10 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(login)
 
         menu.addItem(.separator())
-        let pause = NSMenuItem(title: "Stop until next login", action: #selector(stopUntilLogin), keyEquivalent: "")
-        pause.target = self
-        menu.addItem(pause)
-        let quit = NSMenuItem(title: "Quit (LaunchAgent will restart)", action: #selector(quitApp), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "Quit", action: #selector(quitApp), keyEquivalent: "q")
         quit.target = self
         menu.addItem(quit)
 
@@ -170,7 +170,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func quitApp() {
-        NSApp.terminate(nil)
+        LaunchAtLogin.stopUntilNextLogin()
     }
 
     @objc private func openAccessibility() {
@@ -224,6 +224,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         win.title = "Docktap needs Accessibility"
+        win.animationBehavior = .none
         win.center()
         let view = NSView(frame: win.contentView!.bounds)
         let text = NSTextField(wrappingLabelWithString: "Docktap needs Accessibility (and Input Monitoring on some Macs) so it can see Dock clicks and minimize windows.\n\n1. Open System Settings → Privacy & Security → Accessibility\n2. Enable Docktap\n3. This window closes once permission is granted.")
@@ -248,6 +249,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         win.title = "Docktap is running"
+        win.animationBehavior = .none
         win.center()
         let text = NSTextField(wrappingLabelWithString: "Click a Dock icon the Windows way:\n\n• Focused app, windows visible → minimize\n• Click the same icon again → restore\n• Any other app’s icon → switch as usual\n\n⌘ / ⌥ / ⌃ / ⇧ clicks still go to the Dock. Docktap lives in the menu bar.")
         text.frame = NSRect(x: 20, y: 60, width: 500, height: 160)
