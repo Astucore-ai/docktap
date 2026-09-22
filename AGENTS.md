@@ -33,3 +33,18 @@ When Grok Bot is asked to maintain this repo:
 - Notify the owner only for security reports, permission-model changes, or anything that needs a notarized release.
 
 Org: [Astucore-ai](https://github.com/Astucore-ai).
+
+## Scope and simplicity constraint
+
+Do not introduce unnecessary complexity, abstraction, or security hardening at this time.
+
+Stay inside the current request. Implement only what is needed to complete the stated task correctly.
+
+- Do not add extra layers, wrappers, factories, config systems, feature flags, plugin architecture, or “future-proofing” unless the task explicitly requires them.
+- Do not add new auth, encryption, rate limiting, input sanitization frameworks, CSP, CSRF, secrets rotation, least-privilege redesign, or other security hardening unless the current task is itself a security fix or the existing code already requires it to function.
+- Do not refactor adjacent code “while we are here.”
+- Do not introduce new dependencies unless they are required for the requested change.
+- Prefer the simplest working change that matches existing patterns in this codebase.
+- If a more robust or more secure design would be better later, note it briefly as a follow-up. Do not implement it now.
+
+Default to: smallest correct change, existing conventions, no extra surface area.
